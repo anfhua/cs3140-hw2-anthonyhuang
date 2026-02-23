@@ -1,12 +1,22 @@
 /**********************************************
  * File: app.js
  * Description: A simple Tic-Tac-Toe game
- * Author: [Your Name]
+ * Author: Anthony Huang
  **********************************************/
 
 // Select the status display element from the DOM.
 // We'll use this to display messages to the user.
 const statusDisplay = document.querySelector(".game--status");
+
+let scoreX = 0;
+let scoreO = 0;
+
+const scoreXDisplay = document.getElementById("scoreX");
+const scoreODisplay = document.getElementById("scoreO");
+
+const soundX = document.getElementById("soundX");
+const soundO = document.getElementById("soundO");
+const winSound = document.getElementById("winSound");
 
 // Set initial game state values
 let gameActive = true; // This keeps track of whether the game is active or has ended
@@ -14,8 +24,16 @@ let currentPlayer = "X"; // This tracks whose turn it currently is
 let gameState = ["", "", "", "", "", "", "", "", ""]; // Represents the 9 cells in the game board
 
 // A function to return the current player's turn message
-const currentPlayerTurn = () => `It's ${currentPlayer}'s turn`;
-const winningMessage = () => `Player ${currentPlayer} has won!`;
+const currentPlayerTurn = () =>
+  currentPlayer === "X"
+    ? "🚔 Police (X)'s turn"
+    : "🥷 Robber (O)'s turn";
+
+const winningMessage = () =>
+  currentPlayer === "X"
+    ? "🚔 Police caught the Robber!"
+    : "🥷 Robber escaped!";
+
 const drawMessage = () => `Game ended in a draw!`;
 
 // Display the initial status message in the DOM
@@ -48,6 +66,17 @@ function handleCellPlayed(clickedCell, clickedCellIndex) {
 
   // Display the current player's symbol in the clicked cell
   clickedCell.innerHTML = currentPlayer;
+
+  // =========================
+  // NEW: Animation + Sound
+  // =========================
+  clickedCell.classList.add("pop");
+
+  if (currentPlayer === "X") {
+    soundX.play();
+  } else {
+    soundO.play();
+  }
 }
 
 /**
@@ -74,20 +103,26 @@ function handlePlayerChange() {
  */
 function handleResultValidation() {
   let roundWon = false;
+  let winningCombo = null;
 
   // Iterate through each winning condition
-  for (let i = 0; i < winningConditions.length; i++) {
-    // Destructure the three cell indices that form a potential win
-    const [a, b, c] = winningConditions[i];
+  for (let i = 0; i <= 7; i++) {
+    const [posA, posB, posC] = winningConditions[i];
 
-    // If any cell is empty, skip this iteration
-    if (gameState[a] === "" || gameState[b] === "" || gameState[c] === "") {
+    if (
+      gameState[posA] === "" ||
+      gameState[posB] === "" ||
+      gameState[posC] === ""
+    ) {
       continue;
     }
 
-    // Check if these three positions match, indicating a win
-    if (gameState[a] === gameState[b] && gameState[b] === gameState[c]) {
+    if (
+      gameState[posA] === gameState[posB] &&
+      gameState[posB] === gameState[posC]
+    ) {
       roundWon = true;
+      winningCombo = [posA, posB, posC];
       break;
     }
   }
@@ -96,6 +131,34 @@ function handleResultValidation() {
   if (roundWon) {
     statusDisplay.innerHTML = winningMessage();
     gameActive = false;
+
+    // =========================
+    // NEW: Highlight winning cells
+    // =========================
+    winningCombo.forEach(index => {
+      const cell = document.querySelector(
+      `[data-cell-index="${index}"]`
+    );
+
+    if (currentPlayer === "X") {
+      cell.classList.add("win-police");
+    } else {
+      cell.classList.add("win-robber");
+    }
+});
+
+    // =========================
+    // NEW: Update Score
+    // =========================
+    if (currentPlayer === "X") {
+      scoreX++;
+      scoreXDisplay.innerText = scoreX;
+    } else {
+      scoreO++;
+      scoreODisplay.innerText = scoreO;
+    }
+
+    winSound.play();
     return;
   }
 
@@ -106,7 +169,6 @@ function handleResultValidation() {
     return;
   }
 
-  // If the game is neither won nor drawn, switch to the next player
   handlePlayerChange();
 }
 
@@ -114,25 +176,17 @@ function handleResultValidation() {
  * handleCellClick
  * ---------------
  * This function is triggered whenever a cell in the board is clicked.
- * It determines which cell was clicked, checks if that cell is already used
- * or if the game is inactive, and if valid, calls the functions to update the game state.
- * @param {Event} clickedCellEvent - The click event on one of the cells.
  */
 function handleCellClick(clickedCellEvent) {
-  // The clicked cell element
   const clickedCell = clickedCellEvent.target;
-
-  // The index of the cell based on its data attribute
   const clickedCellIndex = parseInt(
     clickedCell.getAttribute("data-cell-index")
   );
 
-  // If the cell is already filled or the game is not active, don't do anything
   if (gameState[clickedCellIndex] !== "" || !gameActive) {
     return;
   }
 
-  // Otherwise, handle the cell being played and validate results
   handleCellPlayed(clickedCell, clickedCellIndex);
   handleResultValidation();
 }
@@ -140,12 +194,7 @@ function handleCellClick(clickedCellEvent) {
 /**
  * handleRestartGame
  * -----------------
- * Resets the game to its initial state:
- *  - Clears the board
- *  - Resets the 'gameState' array
- *  - Reactivates the game
- *  - Sets the current player to X
- *  - Updates the status display
+ * Resets the game to its initial state.
  */
 function handleRestartGame() {
   gameActive = true;
@@ -153,18 +202,22 @@ function handleRestartGame() {
   gameState = ["", "", "", "", "", "", "", "", ""];
   statusDisplay.innerHTML = currentPlayerTurn();
 
-  // Clear each cell in the UI
   document.querySelectorAll(".cell").forEach(cell => {
-    cell.innerHTML = "";
+  cell.innerHTML = "";
+  cell.classList.remove(
+    "win-highlight",
+    "win-police",
+    "win-robber",
+    "pop"
+  );
   });
 }
 
-// Add event listeners to each cell for a click event
+// Add event listeners
 document.querySelectorAll(".cell").forEach(cell => {
   cell.addEventListener("click", handleCellClick);
 });
 
-// Add event listener to the restart button
 document
   .querySelector(".game--restart")
   .addEventListener("click", handleRestartGame);
